@@ -1,7 +1,0 @@
-name = "testscore"
-compatibility_date = "2024-01-01"
-pages_build_output_dir = "."
-
-# KV 바인딩은 Cloudflare 대시보드에서 설정합니다.
-# Pages → testscore → Settings → Functions → KV namespace bindings
-# Variable name: SCORES_KV
