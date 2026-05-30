@@ -278,6 +278,30 @@ body {
 /* ── Detail score ── */
 .detail-score { font-weight: 700; color: var(--primary); }
 
+/* ── Member detail (rank card expand) ── */
+.rank-clickable { cursor: pointer; transition: background 0.15s; }
+.rank-clickable:active { background: var(--primary-light); }
+.rank-open { border-left: 3px solid var(--primary); border-radius: var(--radius) 0 0 0; }
+
+.member-detail {
+  background: var(--primary-light);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 12px 16px;
+  margin-top: -10px;
+  margin-bottom: 10px;
+}
+.member-detail-round { margin-bottom: 8px; }
+.member-detail-date {
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--primary); margin-bottom: 6px;
+}
+.member-detail-row {
+  display: flex; justify-content: space-between;
+  font-size: 0.875rem; padding: 3px 0;
+  border-bottom: 1px solid rgba(108,99,255,0.1);
+}
+.member-detail-row:last-child { border-bottom: none; }
+
 /* ── Delete button ── */
 .btn-delete {
   background: none; border: none;

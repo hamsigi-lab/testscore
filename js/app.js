@@ -1,7 +1,8 @@
 let state = {
-  evaluator: null,     // 현재 사용자 (평가자)
-  currentRound: null,  // 진행 중인 라운드
-  activePresenter: null // 현재 선택된 발표자 탭
+  evaluator: null,
+  currentRound: null,
+  activePresenter: null,
+  allRounds: null
 };
 
 // ── Init ─────────────────────────────────────────────
@@ -348,6 +349,10 @@ async function renderResults() {
       .sort((a, b) => b.avg - a.avg);
 
     const medals = ['🥇', '🥈', '🥉'];
+    const completedRounds = rounds.filter(r => r.isComplete);
+
+    // 순위 카드 클릭 시 상세 내역 렌더링용 데이터 보관
+    state.allRounds = rounds;
 
     content.innerHTML = `
       <div style="padding: 20px;">
@@ -355,8 +360,9 @@ async function renderResults() {
           <div class="section-title">누적 순위 (발표 평균 점수)</div>
           ${ranked.map((r, i) => {
             const m = CONFIG.members[r.id];
+            const max = CONFIG.roundMaxScore[m.role];
             return `
-              <div class="rank-card">
+              <div class="rank-card rank-clickable" onclick="toggleMemberDetail('${r.id}')">
                 <div class="rank-medal">${medals[i] || (i + 1)}</div>
                 <div class="rank-emoji">${m.emoji}</div>
                 <div class="rank-info">
@@ -364,6 +370,28 @@ async function renderResults() {
                   <div class="rank-sub">${r.count}회 발표 · 최고 ${Math.max(...r.scores)}점</div>
                 </div>
                 <div class="rank-score">${r.avg}<small>점</small></div>
+              </div>
+              <div id="member-detail-${r.id}" class="member-detail" style="display:none">
+                ${completedRounds.map(round => {
+                  const presenterTotal = round.presenterTotals?.[r.id];
+                  if (presenterTotal === undefined) return '';
+                  return `
+                    <div class="member-detail-round">
+                      <div class="member-detail-date">${formatDate(round.date)} · 합계 ${presenterTotal}점 / ${max}점</div>
+                      ${Object.entries(CONFIG.members).map(([evId, evMember]) => {
+                        const evData = round.evaluations?.[evId]?.[r.id];
+                        if (!evData) return '';
+                        const isSelf = evId === r.id;
+                        return `
+                          <div class="member-detail-row">
+                            <span>${evMember.emoji} ${evMember.name}${isSelf ? ' <span class="self-badge">본인</span>' : ''}</span>
+                            <span class="detail-score">${evData.total}점</span>
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                  `;
+                }).join('')}
               </div>
             `;
           }).join('')}
@@ -414,6 +442,19 @@ async function renderResults() {
 function toggleRoundDetail(id) {
   const el = document.getElementById(`detail-${id}`);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleMemberDetail(memberId) {
+  const el = document.getElementById(`member-detail-${memberId}`);
+  if (!el) return;
+  const isOpen = el.style.display !== 'none';
+  // 다른 카드 닫기
+  document.querySelectorAll('.member-detail').forEach(d => d.style.display = 'none');
+  document.querySelectorAll('.rank-clickable').forEach(c => c.classList.remove('rank-open'));
+  if (!isOpen) {
+    el.style.display = 'block';
+    el.previousElementSibling.classList.add('rank-open');
+  }
 }
 
 async function deleteRound(roundId, event) {
