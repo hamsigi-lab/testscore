@@ -254,6 +254,30 @@ body {
 .qr-card canvas { width: 100% !important; height: auto !important; border-radius: 8px; }
 .qr-url   { font-size: 0.6rem; color: var(--muted); margin-top: 6px; word-break: break-all; }
 
+/* ── Progress bar ── */
+.progress-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 16px; }
+.progress-inner { display: flex; align-items: center; gap: 10px; }
+.progress-label { font-size: 0.75rem; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.progress-count { font-size: 0.75rem; color: var(--primary); font-weight: 700; white-space: nowrap; margin-left: auto; }
+.progress-dots { display: flex; gap: 6px; flex: 1; }
+.progress-dot {
+  font-size: 1.1rem; padding: 2px 6px; border-radius: 8px;
+  background: var(--border); color: var(--muted);
+  font-size: 0.8rem; white-space: nowrap;
+}
+.progress-dot.dot-done { background: #D1FAE5; color: #065F46; }
+.progress-dot.dot-me   { outline: 2px solid var(--primary); }
+
+/* ── Self badge ── */
+.self-badge {
+  display: inline-block; background: #FEF3C7; color: #92400E;
+  font-size: 0.72rem; font-weight: 700; padding: 2px 6px;
+  border-radius: 6px; margin-left: 6px; vertical-align: middle;
+}
+
+/* ── Detail score ── */
+.detail-score { font-weight: 700; color: var(--primary); }
+
 /* ── Hint text ── */
 .hint-text {
   text-align: center;

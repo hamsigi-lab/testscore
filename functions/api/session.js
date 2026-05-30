@@ -3,42 +3,38 @@ export async function onRequest(context) {
   const headers = { 'Content-Type': 'application/json' };
 
   if (!env.SCORES_KV) {
-    return new Response(JSON.stringify({ error: 'KV 바인딩이 설정되지 않았어요' }), { status: 500, headers });
+    return new Response(JSON.stringify({ error: 'KV 바인딩 미설정' }), { status: 500, headers });
   }
 
   if (request.method === 'GET') {
-    const sessionId = await env.SCORES_KV.get('current_session_id');
-    if (!sessionId) {
-      return new Response(JSON.stringify({ session: null }), { headers });
-    }
-    const raw = await env.SCORES_KV.get(`session:${sessionId}`);
-    return new Response(JSON.stringify({ session: raw ? JSON.parse(raw) : null }), { headers });
+    const roundId = await env.SCORES_KV.get('current_round_id');
+    if (!roundId) return new Response(JSON.stringify({ round: null }), { headers });
+    const raw = await env.SCORES_KV.get(`round:${roundId}`);
+    return new Response(JSON.stringify({ round: raw ? JSON.parse(raw) : null }), { headers });
   }
 
   if (request.method === 'POST') {
-    const { presenter } = await request.json();
-    const sessionId = String(Date.now());
+    const roundId = String(Date.now());
     const now = new Date();
-
-    const session = {
-      id: sessionId,
+    const round = {
+      id: roundId,
       date: now.toISOString().split('T')[0],
-      presenter,
+      // evaluations[evaluatorId][presenterId] = { scores, total }
       evaluations: {},
       isComplete: false,
-      totalScore: null,
+      presenterTotals: null,
       createdAt: now.toISOString()
     };
 
-    await env.SCORES_KV.put(`session:${sessionId}`, JSON.stringify(session));
-    await env.SCORES_KV.put('current_session_id', sessionId);
+    await env.SCORES_KV.put(`round:${roundId}`, JSON.stringify(round));
+    await env.SCORES_KV.put('current_round_id', roundId);
 
-    const idsRaw = await env.SCORES_KV.get('sessions_index');
+    const idsRaw = await env.SCORES_KV.get('rounds_index');
     const ids = idsRaw ? JSON.parse(idsRaw) : [];
-    ids.push(sessionId);
-    await env.SCORES_KV.put('sessions_index', JSON.stringify(ids));
+    ids.push(roundId);
+    await env.SCORES_KV.put('rounds_index', JSON.stringify(ids));
 
-    return new Response(JSON.stringify({ session }), { headers });
+    return new Response(JSON.stringify({ round }), { headers });
   }
 
   return new Response('Method not allowed', { status: 405 });
