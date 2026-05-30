@@ -263,9 +263,10 @@ body {
 }
 .emoji-gl {
   position: absolute;
-  bottom: -0.05em;
-  right: -0.22em;
-  font-size: 0.46em;
+  top: 32%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.52em;
   line-height: 1;
   pointer-events: none;
 }
