@@ -7,6 +7,10 @@ export async function onRequestPost(context) {
   const { request, env } = context;
   const headers = { 'Content-Type': 'application/json' };
 
+  if (!env.SCORES_KV) {
+    return new Response(JSON.stringify({ error: 'KV 바인딩이 설정되지 않았어요' }), { status: 500, headers });
+  }
+
   const { sessionId, evaluator, scores } = await request.json();
 
   const raw = await env.SCORES_KV.get(`session:${sessionId}`);

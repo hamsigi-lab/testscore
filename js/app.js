@@ -74,9 +74,11 @@ function selectEvaluator(id) {
 
 // ── Home ──────────────────────────────────────────────
 
-function renderHome() {
+async function renderHome() {
   const m = CONFIG.members[state.evaluator];
   document.getElementById('home-evaluator-badge').textContent = `${m.emoji} ${m.name}`;
+
+  await refreshSession();
 
   const content = document.getElementById('home-content');
 
@@ -117,6 +119,7 @@ function renderHome() {
         ? `<button class="btn-secondary" style="opacity:0.5;cursor:default">✓ 이미 평가했어요</button>`
         : `<button onclick="showView('evaluate')" class="btn-primary">평가하기</button>`
       }
+      <button onclick="renderHome()" class="btn-text">🔄 새로고침</button>
       <button onclick="confirmNewSession()" class="btn-text">다른 발표 시작하기</button>
     </div>
   `;
@@ -349,8 +352,8 @@ async function renderResults() {
 }
 
 function formatDate(d) {
-  const dt = new Date(d);
-  return `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+  const [, m, day] = d.split('-');
+  return `${parseInt(m)}월 ${parseInt(day)}일`;
 }
 
 function formatTime(iso) {

@@ -2,6 +2,10 @@ export async function onRequestGet(context) {
   const { env } = context;
   const headers = { 'Content-Type': 'application/json' };
 
+  if (!env.SCORES_KV) {
+    return new Response(JSON.stringify({ error: 'KV 바인딩이 설정되지 않았어요' }), { status: 500, headers });
+  }
+
   const idsRaw = await env.SCORES_KV.get('sessions_index');
   if (!idsRaw) {
     return new Response(JSON.stringify({ sessions: [] }), { headers });
