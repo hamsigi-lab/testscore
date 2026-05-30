@@ -278,6 +278,15 @@ body {
 /* ── Detail score ── */
 .detail-score { font-weight: 700; color: var(--primary); }
 
+/* ── Delete button ── */
+.btn-delete {
+  background: none; border: none;
+  font-size: 1rem; cursor: pointer;
+  padding: 2px 4px; border-radius: 6px;
+  opacity: 0.5; transition: opacity 0.15s;
+}
+.btn-delete:hover { opacity: 1; background: #FEE2E2; }
+
 /* ── Hint text ── */
 .hint-text {
   text-align: center;

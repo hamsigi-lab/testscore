@@ -174,23 +174,28 @@ function switchPresenter(id) {
 
 function renderTabContent(presenterId) {
   const round = state.currentRound;
-  const evaluator = CONFIG.members[state.evaluator];
   const presenter = CONFIG.members[presenterId];
-  const points = CONFIG.gradePoints[evaluator.role];
+  // 점수 기준: 발표자 역할 기준 (평가자 역할과 무관)
+  const points = CONFIG.gradePoints[presenter.role];
   const existing = round.evaluations[state.evaluator]?.[presenterId];
-
   const isSelf = state.evaluator === presenterId;
+
+  // 저장된 등급 불러오기 (신형: grades 필드, 구형: scores에서 역산)
+  const savedGrades = existing
+    ? (existing.grades || existing.scores.map(s => {
+        const evalRole = CONFIG.members[state.evaluator].role;
+        return CONFIG.scoreToGrade[evalRole]?.[s] || null;
+      }))
+    : null;
 
   document.getElementById('eval-content').innerHTML = `
     <div class="evaluator-label">
       ${presenter.emoji} <strong>${presenter.name}</strong> 발표 평가
       ${isSelf ? '<span class="self-badge">본인</span>' : ''}
-      <span class="max-label">만점 ${CONFIG.maxScore[evaluator.role]}점</span>
+      <span class="max-label">만점 ${CONFIG.maxScore[presenter.role]}점</span>
     </div>
     ${CONFIG.items.map((item, i) => {
-      const savedGrade = existing
-        ? Object.entries(points).find(([, v]) => v === existing.scores[i])?.[0]
-        : null;
+      const savedGrade = savedGrades ? savedGrades[i] : null;
       return `
         <div class="item-card">
           <div class="item-name">${i + 1}. ${item.name}</div>
@@ -250,12 +255,10 @@ function checkMyCompletion() {
 // ── 저장 ──────────────────────────────────────────────
 
 async function saveEval() {
-  const evaluator = CONFIG.members[state.evaluator];
-  const points = CONFIG.gradePoints[evaluator.role];
-
-  const scores = CONFIG.items.map(item => {
+  // 등급(A/B/C/D)을 서버로 전송 — 점수 계산은 서버에서 발표자 기준으로 처리
+  const grades = CONFIG.items.map(item => {
     const checked = document.querySelector(`input[name="item-${item.id}"]:checked`);
-    return points[checked.value];
+    return checked.value;
   });
 
   const btn = document.getElementById('save-btn');
@@ -270,7 +273,7 @@ async function saveEval() {
         roundId: state.currentRound.id,
         evaluator: state.evaluator,
         presenter: state.activePresenter,
-        scores
+        grades
       })
     });
     const { round } = await res.json();
@@ -373,13 +376,16 @@ async function renderResults() {
           ).length;
 
           return `
-            <div class="history-item" onclick="toggleRoundDetail('${r.id}')">
-              <div class="history-header">
+            <div class="history-item">
+              <div class="history-header" onclick="toggleRoundDetail('${r.id}')">
                 <span class="history-presenter">${formatDate(r.date)} 평가</span>
-                ${r.isComplete
-                  ? `<span class="history-score">완료</span>`
-                  : `<span class="history-pending">${totalDone}/4 제출</span>`
-                }
+                <div style="display:flex;align-items:center;gap:8px">
+                  ${r.isComplete
+                    ? `<span class="history-score">완료</span>`
+                    : `<span class="history-pending">${totalDone}/4 제출</span>`
+                  }
+                  <button class="btn-delete" onclick="deleteRound('${r.id}', event)">🗑️</button>
+                </div>
               </div>
               ${r.isComplete ? `
                 <div id="detail-${r.id}" class="history-detail" style="display:none">
@@ -387,9 +393,10 @@ async function renderResults() {
                     .sort((a, b) => b[1] - a[1])
                     .map(([id, score]) => {
                       const m = CONFIG.members[id];
+                      const max = CONFIG.roundMaxScore[m.role];
                       return `<div class="detail-row">
                         <span>${m.emoji} ${m.name}</span>
-                        <span class="detail-score">${score} / ${CONFIG.totalMaxScore}점</span>
+                        <span class="detail-score">${score} / ${max}점</span>
                       </div>`;
                     }).join('')}
                 </div>
@@ -407,6 +414,21 @@ async function renderResults() {
 function toggleRoundDetail(id) {
   const el = document.getElementById(`detail-${id}`);
   if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function deleteRound(roundId, event) {
+  event.stopPropagation();
+  if (!confirm('이 평가 기록을 삭제할까요?')) return;
+  try {
+    await fetch('/api/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roundId })
+    });
+    renderResults();
+  } catch {
+    alert('삭제 중 오류가 발생했어요.');
+  }
 }
 
 function formatDate(d) {
