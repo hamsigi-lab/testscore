@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>가족 발표 평가</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- 로딩 -->
+  <div id="view-loading" class="view active">
+    <div class="center-fill">
+      <div class="spinner"></div>
+      <p style="color:var(--muted)">불러오는 중...</p>
+    </div>
+  </div>
+
+  <!-- 본인 선택 -->
+  <div id="view-select-who" class="view">
+    <div class="page-header">
+      <h1>🎤 가족 발표 평가</h1>
+      <p class="subtitle">먼저 누구인지 선택해 주세요</p>
+    </div>
+    <div id="select-who-grid" class="member-grid"></div>
+  </div>
+
+  <!-- 홈 -->
+  <div id="view-home" class="view">
+    <div class="page-header">
+      <div class="evaluator-badge" id="home-evaluator-badge"></div>
+      <h1>🎤 가족 발표 평가</h1>
+    </div>
+    <div id="home-content"></div>
+    <div class="bottom-nav">
+      <button onclick="loadAndShowResults()" class="btn-text">📊 순위 보기</button>
+      <button onclick="showView('qr')" class="btn-text">📱 QR 코드</button>
+      <button onclick="showView('select-who')" class="btn-text">👤 전환</button>
+    </div>
+  </div>
+
+  <!-- 발표자 선택 (새 세션) -->
+  <div id="view-new-session" class="view">
+    <div class="page-header">
+      <button onclick="showView('home')" class="btn-back">← 돌아가기</button>
+      <h2>누가 발표하나요?</h2>
+    </div>
+    <div id="new-session-grid" class="member-grid"></div>
+  </div>
+
+  <!-- 평가 폼 -->
+  <div id="view-evaluate" class="view">
+    <div class="page-header">
+      <button onclick="showView('home')" class="btn-back">← 돌아가기</button>
+      <h2 id="evaluate-title"></h2>
+      <p id="evaluate-subtitle" class="subtitle"></p>
+    </div>
+    <form id="evaluate-form">
+      <div id="items-container"></div>
+      <div class="form-footer">
+        <button type="submit" class="btn-primary" id="submit-btn" disabled>제출하기</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 제출 완료 -->
+  <div id="view-done" class="view">
+    <div class="center-fill">
+      <div class="big-emoji">✅</div>
+      <h2>평가 완료!</h2>
+      <p id="done-message" style="color:var(--muted)"></p>
+      <div id="done-score-card" class="score-card"></div>
+      <div class="btn-group">
+        <button onclick="showView('home')" class="btn-secondary">홈으로</button>
+        <button onclick="loadAndShowResults()" class="btn-primary">결과 보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 순위 / 결과 -->
+  <div id="view-results" class="view">
+    <div class="page-header">
+      <button onclick="showView('home')" class="btn-back">← 홈</button>
+      <h2>📊 순위</h2>
+    </div>
+    <div id="results-content">
+      <div class="center-fill"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- QR 코드 -->
+  <div id="view-qr" class="view">
+    <div class="page-header">
+      <button onclick="showView('home')" class="btn-back">← 홈</button>
+      <h2>📱 QR 코드</h2>
+      <p class="subtitle">각자의 QR 코드를 스캔하면 평가 폼이 열려요</p>
+    </div>
+    <div id="qr-content"></div>
+    <div style="padding: 0 20px 20px;">
+      <button onclick="window.print()" class="btn-secondary">🖨️ 인쇄하기</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="/js/config.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

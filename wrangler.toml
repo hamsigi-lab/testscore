@@ -1,0 +1,10 @@
+name = "testscore"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "."
+
+# Cloudflare 대시보드에서 KV 네임스페이스를 생성한 뒤
+# 아래 id 값을 실제 ID로 교체하세요.
+[[kv_namespaces]]
+binding = "SCORES_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_NAMESPACE_ID"
