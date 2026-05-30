@@ -9,71 +9,53 @@
 <body>
 <div id="app">
 
-  <!-- 로딩 -->
-  <div id="view-loading" class="view active">
-    <div class="center-fill">
-      <div class="spinner"></div>
-      <p style="color:var(--muted)">불러오는 중...</p>
-    </div>
-  </div>
-
-  <!-- 본인 선택 -->
-  <div id="view-select-who" class="view">
+  <!-- 발표자 선택 (세션 없을 때 첫 화면) -->
+  <div id="view-presenter" class="view active">
     <div class="page-header">
       <h1>🎤 가족 발표 평가</h1>
-      <p class="subtitle">먼저 누구인지 선택해 주세요</p>
+      <p class="subtitle">오늘 발표할 사람을 선택하세요</p>
     </div>
-    <div id="select-who-grid" class="member-grid"></div>
-  </div>
-
-  <!-- 홈 -->
-  <div id="view-home" class="view">
-    <div class="page-header">
-      <div class="evaluator-badge" id="home-evaluator-badge"></div>
-      <h1>🎤 가족 발표 평가</h1>
-    </div>
-    <div id="home-content"></div>
+    <div id="presenter-grid" class="member-grid"></div>
     <div class="bottom-nav">
-      <button onclick="loadAndShowResults()" class="btn-text">📊 순위 보기</button>
+      <button onclick="goResults()" class="btn-text">📊 지난 결과</button>
       <button onclick="showView('qr')" class="btn-text">📱 QR 코드</button>
-      <button onclick="showView('select-who')" class="btn-text">👤 전환</button>
     </div>
   </div>
 
-  <!-- 발표자 선택 (새 세션) -->
-  <div id="view-new-session" class="view">
+  <!-- 메인 (세션 진행 중) -->
+  <div id="view-main" class="view">
     <div class="page-header">
-      <button onclick="showView('home')" class="btn-back">← 돌아가기</button>
-      <h2>누가 발표하나요?</h2>
+      <h2 id="main-title"></h2>
+      <p id="main-progress" class="subtitle"></p>
     </div>
-    <div id="new-session-grid" class="member-grid"></div>
+    <p class="hint-text">평가할 사람의 이름을 눌러 점수를 입력하세요</p>
+    <div id="main-grid" class="member-grid"></div>
+    <div id="main-complete" style="display:none; padding: 0 20px 12px;">
+      <button onclick="goResults()" class="btn-primary">🏆 최종 결과 보기</button>
+    </div>
+    <div class="bottom-nav">
+      <button onclick="newPresenter()" class="btn-text">🔄 새 발표</button>
+      <button onclick="goResults()" class="btn-text">📊 순위</button>
+      <button onclick="showView('qr')" class="btn-text">📱 QR</button>
+    </div>
   </div>
 
-  <!-- 평가 폼 -->
+  <!-- 평가 (탭 방식) -->
   <div id="view-evaluate" class="view">
     <div class="page-header">
-      <button onclick="showView('home')" class="btn-back">← 돌아가기</button>
-      <h2 id="evaluate-title"></h2>
-      <p id="evaluate-subtitle" class="subtitle"></p>
+      <button onclick="backToMain()" class="btn-back">← 돌아가기</button>
+      <h2 id="eval-presenter-title"></h2>
     </div>
-    <form id="evaluate-form">
-      <div id="items-container"></div>
-      <div class="form-footer">
-        <button type="submit" class="btn-primary" id="submit-btn" disabled>제출하기</button>
-      </div>
-    </form>
-  </div>
-
-  <!-- 제출 완료 -->
-  <div id="view-done" class="view">
-    <div class="center-fill">
-      <div class="big-emoji">✅</div>
-      <h2>평가 완료!</h2>
-      <p id="done-message" style="color:var(--muted)"></p>
-      <div id="done-score-card" class="score-card"></div>
-      <div class="btn-group">
-        <button onclick="showView('home')" class="btn-secondary">홈으로</button>
-        <button onclick="loadAndShowResults()" class="btn-primary">결과 보기</button>
+    <div id="eval-tabs" class="eval-tabs"></div>
+    <div id="eval-complete-banner" class="complete-banner" style="display:none">
+      🎉 모든 평가 완료!
+      <button onclick="goResults()">결과 보기 →</button>
+    </div>
+    <div id="eval-content" class="eval-body"></div>
+    <div class="form-footer">
+      <div class="footer-inner">
+        <span id="save-status" class="save-status"></span>
+        <button id="save-btn" onclick="saveEvaluation()" class="btn-primary btn-save" disabled>저장</button>
       </div>
     </div>
   </div>
@@ -81,7 +63,7 @@
   <!-- 순위 / 결과 -->
   <div id="view-results" class="view">
     <div class="page-header">
-      <button onclick="showView('home')" class="btn-back">← 홈</button>
+      <button onclick="backToMain()" class="btn-back">← 홈</button>
       <h2>📊 순위</h2>
     </div>
     <div id="results-content">
@@ -92,9 +74,9 @@
   <!-- QR 코드 -->
   <div id="view-qr" class="view">
     <div class="page-header">
-      <button onclick="showView('home')" class="btn-back">← 홈</button>
+      <button onclick="backToMain()" class="btn-back">← 홈</button>
       <h2>📱 QR 코드</h2>
-      <p class="subtitle">각자의 QR 코드를 스캔하면 평가 폼이 열려요</p>
+      <p class="subtitle">각자의 QR 코드를 스캔하면 바로 접속돼요</p>
     </div>
     <div id="qr-content"></div>
     <div style="padding: 0 20px 20px;">

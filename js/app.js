@@ -1,7 +1,6 @@
 let state = {
-  evaluator: null,
   currentSession: null,
-  lastSubmission: null
+  activeTab: null
 };
 
 // ── Init ─────────────────────────────────────────────
@@ -9,14 +8,19 @@ let state = {
 async function init() {
   const params = new URLSearchParams(window.location.search);
   const ev = params.get('evaluator');
-  if (ev && CONFIG.members[ev]) state.evaluator = ev;
 
   await refreshSession();
 
-  if (!state.evaluator) {
-    showView('select-who');
+  if (!state.currentSession) {
+    showView('presenter');
   } else {
-    showView('home');
+    // QR로 접속한 경우 해당 탭으로 바로 진입
+    if (ev && CONFIG.members[ev]) {
+      state.activeTab = ev;
+      showView('evaluate');
+    } else {
+      showView('main');
+    }
   }
 }
 
@@ -24,8 +28,8 @@ async function refreshSession() {
   try {
     const res = await fetch('/api/session');
     if (res.ok) {
-      const data = await res.json();
-      state.currentSession = data.session;
+      const { session } = await res.json();
+      state.currentSession = session;
     }
   } catch {
     state.currentSession = null;
@@ -36,27 +40,43 @@ async function refreshSession() {
 
 function showView(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  const el = document.getElementById(`view-${name}`);
-  if (el) el.classList.add('active');
+  document.getElementById(`view-${name}`).classList.add('active');
+  window.scrollTo(0, 0);
 
   const renders = {
-    'select-who':  renderSelectWho,
-    'home':        renderHome,
-    'new-session': renderNewSession,
-    'evaluate':    renderEvaluate,
-    'results':     renderResults,
-    'qr':          renderQR
+    presenter: renderPresenter,
+    main:      renderMain,
+    evaluate:  renderEvaluate,
+    results:   renderResults,
+    qr:        renderQR
   };
   if (renders[name]) renders[name]();
-  window.scrollTo(0, 0);
 }
 
-// ── Select who ────────────────────────────────────────
+function backToMain() {
+  if (state.currentSession && !state.currentSession.isComplete) {
+    showView('main');
+  } else {
+    showView('presenter');
+  }
+}
 
-function renderSelectWho() {
-  document.getElementById('select-who-grid').innerHTML =
+async function goResults() {
+  showView('results');
+}
+
+async function newPresenter() {
+  if (!confirm('새로운 발표를 시작할까요?')) return;
+  state.currentSession = null;
+  showView('presenter');
+}
+
+// ── Presenter selection ───────────────────────────────
+
+function renderPresenter() {
+  document.getElementById('presenter-grid').innerHTML =
     Object.entries(CONFIG.members).map(([id, m]) => `
-      <div class="member-card" onclick="selectEvaluator('${id}')">
+      <div class="member-card" onclick="startSession('${id}')">
         <div class="emoji">${m.emoji}</div>
         <div class="name">${m.name}</div>
         <div class="role">${m.role === 'parent' ? '부모' : '자녀'}</div>
@@ -64,160 +84,171 @@ function renderSelectWho() {
     `).join('');
 }
 
-function selectEvaluator(id) {
-  state.evaluator = id;
-  const url = new URL(window.location.href);
-  url.searchParams.set('evaluator', id);
-  window.history.replaceState({}, '', url.toString());
-  showView('home');
-}
-
-// ── Home ──────────────────────────────────────────────
-
-async function renderHome() {
-  const m = CONFIG.members[state.evaluator];
-  document.getElementById('home-evaluator-badge').textContent = `${m.emoji} ${m.name}`;
-
-  await refreshSession();
-
-  const content = document.getElementById('home-content');
-
-  if (!state.currentSession) {
-    content.innerHTML = `
-      <div class="session-card">
-        <div class="empty-state">
-          <div class="empty-emoji">🎤</div>
-          <p>아직 발표가 시작되지 않았어요</p>
-        </div>
-      </div>
-      <div class="home-actions">
-        <button onclick="showView('new-session')" class="btn-primary">새 발표 시작하기</button>
-      </div>
-    `;
-    return;
-  }
-
-  const session = state.currentSession;
-  const presenter = CONFIG.members[session.presenter];
-  const evalCount = Object.keys(session.evaluations || {}).length;
-  const alreadyEvaluated = !!(session.evaluations && session.evaluations[state.evaluator]);
-
-  const chips = Object.entries(CONFIG.members).map(([id, mem]) => {
-    const done = session.evaluations && session.evaluations[id];
-    return `<span class="evaluator-chip ${done ? 'done' : 'pending'}">${mem.emoji} ${mem.name} ${done ? '✓' : ''}</span>`;
-  }).join('');
-
-  content.innerHTML = `
-    <div class="session-card">
-      <div class="presenter-emoji">${presenter.emoji}</div>
-      <div class="presenter-name">${presenter.name} 발표 중</div>
-      <div class="session-status">${evalCount} / 4 평가 완료</div>
-      <div class="evaluators-status">${chips}</div>
-    </div>
-    <div class="home-actions">
-      ${alreadyEvaluated
-        ? `<button class="btn-secondary" style="opacity:0.5;cursor:default">✓ 이미 평가했어요</button>`
-        : `<button onclick="showView('evaluate')" class="btn-primary">평가하기</button>`
-      }
-      <button onclick="renderHome()" class="btn-text">🔄 새로고침</button>
-      <button onclick="confirmNewSession()" class="btn-text">다른 발표 시작하기</button>
-    </div>
-  `;
-}
-
-async function confirmNewSession() {
-  if (!confirm('현재 평가를 종료하고 새 발표를 시작할까요?')) return;
-  state.currentSession = null;
-  showView('new-session');
-}
-
-// ── New session ───────────────────────────────────────
-
-function renderNewSession() {
-  document.getElementById('new-session-grid').innerHTML =
-    Object.entries(CONFIG.members).map(([id, m]) => `
-      <div class="member-card" onclick="createSession('${id}')">
-        <div class="emoji">${m.emoji}</div>
-        <div class="name">${m.name}</div>
-      </div>
-    `).join('');
-}
-
-async function createSession(presenterId) {
+async function startSession(presenterId) {
   try {
     const res = await fetch('/api/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ presenter: presenterId })
     });
-    const data = await res.json();
-    state.currentSession = data.session;
-    showView('home');
+    const { session } = await res.json();
+    state.currentSession = session;
+    showView('main');
   } catch {
     alert('오류가 발생했어요. 다시 시도해 주세요.');
   }
 }
 
-// ── Evaluate ──────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────
+
+async function renderMain() {
+  await refreshSession();
+
+  const session = state.currentSession;
+  if (!session) { showView('presenter'); return; }
+
+  const presenter = CONFIG.members[session.presenter];
+  const evalCount = Object.keys(session.evaluations || {}).length;
+
+  document.getElementById('main-title').textContent = `${presenter.emoji} ${presenter.name} 발표 중`;
+  document.getElementById('main-progress').textContent = `${evalCount} / 4 평가 완료`;
+
+  document.getElementById('main-grid').innerHTML =
+    Object.entries(CONFIG.members).map(([id, m]) => {
+      const done = !!(session.evaluations && session.evaluations[id]);
+      return `
+        <div class="member-card ${done ? 'card-done' : ''}" onclick="openEvaluate('${id}')">
+          <div class="emoji">${m.emoji}</div>
+          <div class="name">${m.name}</div>
+          <div class="card-status">${done ? '✓ 완료' : '탭해서 평가'}</div>
+        </div>
+      `;
+    }).join('');
+
+  document.getElementById('main-complete').style.display = session.isComplete ? 'block' : 'none';
+}
+
+function openEvaluate(evaluatorId) {
+  state.activeTab = evaluatorId;
+  showView('evaluate');
+}
+
+// ── Evaluate (tabbed) ─────────────────────────────────
 
 function renderEvaluate() {
   const session = state.currentSession;
   const presenter = CONFIG.members[session.presenter];
-  const evaluator = CONFIG.members[state.evaluator];
+
+  document.getElementById('eval-presenter-title').textContent =
+    `${presenter.emoji} ${presenter.name} 발표 평가`;
+
+  if (session.isComplete) {
+    document.getElementById('eval-complete-banner').style.display = 'block';
+  }
+
+  renderTabs();
+  renderTabContent(state.activeTab);
+}
+
+function renderTabs() {
+  const session = state.currentSession;
+  document.getElementById('eval-tabs').innerHTML =
+    Object.entries(CONFIG.members).map(([id, m]) => {
+      const done = !!(session.evaluations && session.evaluations[id]);
+      const active = id === state.activeTab;
+      return `
+        <button class="eval-tab ${active ? 'tab-active' : ''} ${done ? 'tab-done' : ''}"
+          onclick="switchTab('${id}')">
+          ${m.emoji} ${m.name}${done ? ' ✓' : ''}
+        </button>
+      `;
+    }).join('');
+}
+
+function switchTab(id) {
+  state.activeTab = id;
+  renderTabs();
+  renderTabContent(id);
+  window.scrollTo(0, 0);
+}
+
+function renderTabContent(evaluatorId) {
+  const session = state.currentSession;
+  const evaluator = CONFIG.members[evaluatorId];
   const points = CONFIG.gradePoints[evaluator.role];
+  const existing = session.evaluations && session.evaluations[evaluatorId];
 
-  document.getElementById('evaluate-title').textContent = `${presenter.name} 발표 평가`;
-  document.getElementById('evaluate-subtitle').textContent = `평가자: ${evaluator.emoji} ${evaluator.name}`;
-
-  document.getElementById('items-container').innerHTML = CONFIG.items.map((item, i) => `
-    <div class="item-card">
-      <div class="item-name">${i + 1}. ${item.name}</div>
-      <div class="item-desc">${item.desc}</div>
-      <div class="grade-options">
-        ${['A', 'B', 'C', 'D'].map(g => `
-          <label class="grade-btn" id="grade-${item.id}-${g}">
-            <input type="radio" name="item-${item.id}" value="${g}" style="display:none"
-              onchange="onGradeSelect('${item.id}', '${g}')">
-            <div class="grade-label">${g}</div>
-            <div class="grade-points">${points[g]}점</div>
-            <div class="grade-desc">${item.grades[g]}</div>
-          </label>
-        `).join('')}
-      </div>
+  document.getElementById('eval-content').innerHTML = `
+    <div class="evaluator-label">
+      ${evaluator.emoji} ${evaluator.name} 평가
+      <span class="max-label">(만점 ${CONFIG.maxScore[evaluator.role]}점)</span>
     </div>
-  `).join('');
+    ${CONFIG.items.map((item, i) => {
+      const savedGrade = existing
+        ? Object.entries(points).find(([, v]) => v === existing.scores[i])?.[0]
+        : null;
+      return `
+        <div class="item-card">
+          <div class="item-name">${i + 1}. ${item.name}</div>
+          <div class="item-desc">${item.desc}</div>
+          <div class="grade-options">
+            ${['A', 'B', 'C', 'D'].map(g => `
+              <label class="grade-btn ${savedGrade === g ? 'selected' : ''}" id="grade-${item.id}-${g}">
+                <input type="radio" name="item-${item.id}" value="${g}" style="display:none"
+                  ${savedGrade === g ? 'checked' : ''}
+                  onchange="onGradeSelect('${item.id}', '${g}')">
+                <div class="grade-label">${g}</div>
+                <div class="grade-points">${points[g]}점</div>
+                <div class="grade-desc">${item.grades[g]}</div>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
 
-  document.getElementById('evaluate-form').onsubmit = submitEvaluation;
-  updateSubmitBtn();
+  updateSaveBtn();
 }
 
 function onGradeSelect(itemId, grade) {
   ['A', 'B', 'C', 'D'].forEach(g => {
     document.getElementById(`grade-${itemId}-${g}`).classList.toggle('selected', g === grade);
   });
-  updateSubmitBtn();
+  updateSaveBtn();
 }
 
-function updateSubmitBtn() {
+function updateSaveBtn() {
   const allSelected = CONFIG.items.every(item =>
     document.querySelector(`input[name="item-${item.id}"]:checked`)
   );
-  document.getElementById('submit-btn').disabled = !allSelected;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = !allSelected;
+
+  const existing = state.currentSession.evaluations?.[state.activeTab];
+  const status = document.getElementById('save-status');
+  if (existing) {
+    btn.textContent = '다시 저장';
+    status.textContent = '저장된 평가가 있어요';
+    status.className = 'save-status saved';
+  } else {
+    btn.textContent = '저장';
+    status.textContent = '';
+  }
 }
 
-async function submitEvaluation(e) {
-  e.preventDefault();
-  const role = CONFIG.members[state.evaluator].role;
-  const points = CONFIG.gradePoints[role];
+async function saveEvaluation() {
+  const evaluatorId = state.activeTab;
+  const points = CONFIG.gradePoints[CONFIG.members[evaluatorId].role];
 
   const scores = CONFIG.items.map(item => {
     const checked = document.querySelector(`input[name="item-${item.id}"]:checked`);
     return points[checked.value];
   });
 
-  const btn = document.getElementById('submit-btn');
+  const btn = document.getElementById('save-btn');
   btn.disabled = true;
-  btn.textContent = '제출 중...';
+  btn.textContent = '저장 중...';
 
   try {
     const res = await fetch('/api/evaluate', {
@@ -225,49 +256,29 @@ async function submitEvaluation(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sessionId: state.currentSession.id,
-        evaluator: state.evaluator,
+        evaluator: evaluatorId,
         scores
       })
     });
-    const data = await res.json();
-    state.currentSession = data.session;
-    state.lastSubmission = { scores, total: scores.reduce((a, b) => a + b, 0), role };
-    renderDoneView();
-    showView('done');
-  } catch {
-    alert('제출 중 오류가 발생했어요.');
+    const { session } = await res.json();
+    state.currentSession = session;
+
+    const status = document.getElementById('save-status');
+    status.textContent = '✓ 저장됐어요!';
+    status.className = 'save-status saved';
+    btn.textContent = '다시 저장';
     btn.disabled = false;
-    btn.textContent = '제출하기';
+
+    renderTabs();
+
+    if (session.isComplete) {
+      document.getElementById('eval-complete-banner').style.display = 'block';
+    }
+  } catch {
+    alert('저장 중 오류가 발생했어요.');
+    btn.disabled = false;
+    btn.textContent = '저장';
   }
-}
-
-// ── Done ──────────────────────────────────────────────
-
-function renderDoneView() {
-  const { scores, total, role } = state.lastSubmission;
-  const evaluator = CONFIG.members[state.evaluator];
-
-  document.getElementById('done-message').textContent =
-    `${evaluator.name}의 평가가 접수되었어요!`;
-
-  const rows = CONFIG.items.map((item, i) => `
-    <div class="score-row">
-      <span>${item.name}</span>
-      <span>${scores[i]}점</span>
-    </div>
-  `).join('');
-
-  document.getElementById('done-score-card').innerHTML = `
-    ${rows}
-    <div class="score-row total">
-      <span>합계</span>
-      <span>${total} / ${CONFIG.maxScore[role]}점</span>
-    </div>
-  `;
-}
-
-async function loadAndShowResults() {
-  showView('results');
 }
 
 // ── Results ───────────────────────────────────────────
@@ -290,7 +301,6 @@ async function renderResults() {
       return;
     }
 
-    // 누적 순위 집계
     const board = {};
     sessions.filter(s => s.isComplete).forEach(s => {
       if (!board[s.presenter]) board[s.presenter] = { count: 0, total: 0, scores: [] };
@@ -305,50 +315,63 @@ async function renderResults() {
 
     const medals = ['🥇', '🥈', '🥉'];
 
-    const rankHTML = ranked.length ? `
-      <div class="section-title">누적 순위 (평균 점수 기준)</div>
-      ${ranked.map((r, i) => {
-        const m = CONFIG.members[r.id];
-        return `
-          <div class="rank-card rank-${i + 1}">
-            <div class="rank-medal">${medals[i] || (i + 1)}</div>
-            <div class="rank-emoji">${m.emoji}</div>
-            <div class="rank-info">
-              <div class="rank-name">${m.name}</div>
-              <div class="rank-sub">${r.count}회 · 최고 ${Math.max(...r.scores)}점</div>
+    content.innerHTML = `
+      <div style="padding: 20px;">
+        ${ranked.length ? `
+          <div class="section-title">누적 순위 (평균 점수)</div>
+          ${ranked.map((r, i) => {
+            const m = CONFIG.members[r.id];
+            return `
+              <div class="rank-card">
+                <div class="rank-medal">${medals[i] || (i + 1)}</div>
+                <div class="rank-emoji">${m.emoji}</div>
+                <div class="rank-info">
+                  <div class="rank-name">${m.name}</div>
+                  <div class="rank-sub">${r.count}회 발표 · 최고 ${Math.max(...r.scores)}점</div>
+                </div>
+                <div class="rank-score">${r.avg}<small>점</small></div>
+              </div>
+            `;
+          }).join('')}
+        ` : ''}
+        <div class="section-title">발표 기록</div>
+        ${[...sessions].reverse().map(s => {
+          const m = CONFIG.members[s.presenter];
+          const evalCount = Object.keys(s.evaluations || {}).length;
+          return `
+            <div class="history-item" onclick="toggleDetail('${s.id}')">
+              <div class="history-header">
+                <span class="history-presenter">${m.emoji} ${m.name}</span>
+                ${s.isComplete
+                  ? `<span class="history-score">${s.totalScore} / ${CONFIG.totalMaxScore}점</span>`
+                  : `<span class="history-pending">평가 중 ${evalCount}/4</span>`
+                }
+              </div>
+              <div class="history-date">${formatDate(s.date)}</div>
+              ${s.isComplete ? `
+                <div id="detail-${s.id}" class="history-detail" style="display:none">
+                  ${Object.entries(s.evaluations).map(([evId, ev]) => {
+                    const evMember = CONFIG.members[evId];
+                    return `<div class="detail-row">
+                      <span>${evMember.emoji} ${evMember.name}</span>
+                      <span>${ev.total}점</span>
+                    </div>`;
+                  }).join('')}
+                </div>
+              ` : ''}
             </div>
-            <div class="rank-score">
-              ${r.avg}<small>점</small>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    ` : '';
-
-    const historyHTML = `
-      <div class="section-title">발표 기록</div>
-      ${[...sessions].reverse().map(s => {
-        const m = CONFIG.members[s.presenter];
-        const evalCount = Object.keys(s.evaluations || {}).length;
-        return `
-          <div class="history-item">
-            <div class="history-header">
-              <span class="history-presenter">${m.emoji} ${m.name}</span>
-              ${s.isComplete
-                ? `<span class="history-score">${s.totalScore} / ${CONFIG.totalMaxScore}점</span>`
-                : `<span class="history-pending">평가 중 ${evalCount}/4</span>`
-              }
-            </div>
-            <div class="history-date">${formatDate(s.date)} ${formatTime(s.createdAt)}</div>
-          </div>
-        `;
-      }).join('')}
+          `;
+        }).join('')}
+      </div>
     `;
-
-    content.innerHTML = rankHTML + historyHTML;
   } catch {
     content.innerHTML = '<div class="empty-state"><p>결과를 불러오지 못했어요.</p></div>';
   }
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(`detail-${id}`);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function formatDate(d) {
@@ -356,29 +379,23 @@ function formatDate(d) {
   return `${parseInt(m)}월 ${parseInt(day)}일`;
 }
 
-function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
-}
-
 // ── QR ────────────────────────────────────────────────
 
 function renderQR() {
-  const base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  const content = document.getElementById('qr-content');
-
-  content.innerHTML = Object.entries(CONFIG.members).map(([id, m]) => `
-    <div class="qr-card">
-      <div class="qr-emoji">${m.emoji}</div>
-      <div class="qr-name">${m.name}</div>
-      <canvas id="qr-${id}"></canvas>
-      <div class="qr-url">${base}?evaluator=${id}</div>
-    </div>
-  `).join('');
+  const base = window.location.origin;
+  document.getElementById('qr-content').innerHTML =
+    Object.entries(CONFIG.members).map(([id, m]) => `
+      <div class="qr-card">
+        <div class="qr-emoji">${m.emoji}</div>
+        <div class="qr-name">${m.name}</div>
+        <canvas id="qr-${id}"></canvas>
+        <div class="qr-url">${base}?evaluator=${id}</div>
+      </div>
+    `).join('');
 
   Object.keys(CONFIG.members).forEach(id => {
     QRCode.toCanvas(document.getElementById(`qr-${id}`), `${base}?evaluator=${id}`, {
-      width: 150,
-      margin: 1,
+      width: 150, margin: 1,
       color: { dark: '#1E1B4B', light: '#FFFFFF' }
     });
   });
