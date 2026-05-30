@@ -254,6 +254,22 @@ body {
 .qr-card canvas { width: 100% !important; height: auto !important; border-radius: 8px; }
 .qr-url   { font-size: 0.6rem; color: var(--muted); margin-top: 6px; word-break: break-all; }
 
+/* ── Emoji combo (hair + glasses) ── */
+.emoji-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  vertical-align: middle;
+}
+.emoji-gl {
+  position: absolute;
+  bottom: -0.05em;
+  right: -0.22em;
+  font-size: 0.46em;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* ── Progress bar ── */
 .progress-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 16px; }
 .progress-inner { display: flex; align-items: center; gap: 10px; }
