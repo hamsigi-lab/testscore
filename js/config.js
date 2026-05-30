@@ -2,8 +2,8 @@ const CONFIG = {
   members: {
     mom:    { name: '엄마', role: 'parent', emoji: '👩' },
     dad:    { name: '아빠', role: 'parent', emoji: '👨' },
-    child1: { name: '첫째', role: 'child',  emoji: '<span class="emoji-wrap">👩<span class="emoji-gl">👓</span></span>' },
-    child2: { name: '둘째', role: 'child',  emoji: '<span class="emoji-wrap">👱‍♀️<span class="emoji-gl">👓</span></span>' }
+    child1: { name: '첫째', role: 'child',  emoji: '👧' },
+    child2: { name: '둘째', role: 'child',  emoji: '👧' }
   },
 
   items: [
